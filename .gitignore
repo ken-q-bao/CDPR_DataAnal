@@ -3,5 +3,6 @@
 .RData
 .Ruserdata
 *.zip
+*.duckdb
 cdpr_data_zip
 cdpr_data_unzip

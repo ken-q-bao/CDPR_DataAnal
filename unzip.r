@@ -1,5 +1,13 @@
 library(stringr)
 library(utils)
+
+# specify directory to unzip files to
+dir = "cdpr_data_unzip/"
+# if dir does not exist, create it
+if(!dir.exists(dir)){
+  dir.create(dir)
+}
+
 # get list of unzipped files
 existing_files = list.files(path = "cdpr_data_unzip", pattern = ".txt")
 

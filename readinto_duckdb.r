@@ -7,7 +7,7 @@ files_basenames = gsub("\\.txt$", "", basename(files))
 # create list of queries to load each .txt file into duckdb
 queries = lapply(files, function(f) {
   table_name = tools::file_path_sans_ext(basename(f))
-  qry = sprintf("CREATE TABLE %s AS SELECT * FROM read_csv_auto('%s', header=TRUE);", 
+  qry = sprintf("CREATE TABLE %s AS SELECT * FROM read_text('%s');", 
                 table_name, f)
   return(qry)
 })

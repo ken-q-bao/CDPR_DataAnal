@@ -28,8 +28,10 @@ queries = lapply(files, function(f) {
 
 con = dbConnect(duckdb::duckdb(), "cdpr_rawdata.duckdb")
 
-current_db_files = dbListTables(con)
 # only run queries for tables that do not already exist in the database
+# get current tables within cdpr_rawdata.duckdb
+current_db_files = dbListTables(con)
+
 ## filter queries to only include those for tables that do not already exist in the database
 queries = queries[!files_basenames %in% current_db_files]
 

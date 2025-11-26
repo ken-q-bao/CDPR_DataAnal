@@ -23,15 +23,23 @@ urls_data = str_subset(urls_data, "/pub/outgoing/pur_archives/pur")
 # get only file names from URLs
 filenames = basename(urls_data)
 
+# sepcify directory to save files
+dir = "cdpr_data_zip/"
+
+# if dir does not exist, create it
+if(!dir.exists(dir)){
+  dir.create(dir)
+}
+
 # list existing files in cdpr_data_zip folder
-existing_files = list.files("cdpr_data_zip/")
+existing_files = list.files(dir)
 
 # if an item in filenames is not in existing_files, download it
 options(timeout = max(300, getOption("timeout")))
 for(i in 1:length(filenames)){
   if(!(filenames[i] %in% existing_files)){
     download.file(url = paste0(url, filenames[i]),
-                  destfile = paste0("cdpr_data_zip/", filenames[i]), mode = "wb")
+                  destfile = paste0("cdpr_data_zip/", filenames[i]), mode = "wb") # nolint: line_length_linter.
   }
 }
 

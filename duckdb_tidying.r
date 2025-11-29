@@ -1,3 +1,7 @@
+########## to do list:
+# - not all .txt files in raw database have year column, so need to handle that
+#   perhaps by adding a year column based on filename during import step
+
 library(DBI)
 library(duckdb)
 library(progress)   # for a nice progress bar

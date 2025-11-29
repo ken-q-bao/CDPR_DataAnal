@@ -6,8 +6,48 @@ library(DBI)
 library(duckdb)
 library(progress)   # for a nice progress bar
 
+# first - check if each table in raw database has a 'year' column
+# if not, add it based on the filename
 con_raw = dbConnect(duckdb(), "cdpr_rawdata.duckdb")
 tables_raw = dbListTables(con_raw)
+
+cols = dbListFields(con_raw, tables_raw[1])
+
+for (t in tables_raw) {
+  # get columns of the table t
+  cols = dbListFields(con_raw, t)
+  
+  if (!("year" %in% cols)) {
+    # extract year from table name (assuming last 4 characters represent year)
+    patt_pur = "^pur[0-9]{2}$"               # files for years 1989 and before
+    patt_udc90 = "^udc9[0-9]_[0-9]{2}$"      # files for 1990s
+    patt_udc00 = "^udc[0-2][0-9]_[0-9]{2}$"  # files for 2000s and later
+
+    if (grepl(patt_pur, t)) {
+      year_value = paste0("19", substr(t, nchar(t) - 1, nchar(t)))
+    } else if (grepl(patt_udc90, t)) {
+      year_value = paste0("19", substr(t, nchar(t) - 4, nchar(t)-3))
+    } else if (grepl(patt_udc00, t)) {
+      year_value = paste0("20", substr(t, nchar(t) - 4, nchar(t)-3))
+    } else {
+      year_value = NA
+      warning("Could not extract year from table name: ", t)
+    }
+    
+    # add year column with the extracted value
+    dbExecute(con_raw, sprintf("
+      ALTER TABLE %s ADD COLUMN year TEXT;
+    ", t))
+    
+    dbExecute(con_raw, sprintf("
+      UPDATE %s SET year = '%s';
+    ", t, year_value))
+    
+    message("Added 'year' column to table: ", t)
+  } else {
+    message("'year' column already exists in table: ", t)
+  }
+}
 dbDisconnect(con_raw)
 
 con_combined = dbConnect(duckdb(), "cdpr_combined.duckdb")

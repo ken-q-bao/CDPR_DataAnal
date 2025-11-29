@@ -15,14 +15,8 @@ colnames <- dbGetQuery(con, "PRAGMA table_info('cdpr_combined')")$name
 # example query: get all records from years 2018-2022
 comb_tbl = dbGetQuery(con, "SELECT * 
                             FROM cdpr_combined
-                            WHERE CAST(\"year\" AS INTEGER) BETWEEN 2017 AND 2021;")
+                            WHERE CAST(\"year\" AS INTEGER) BETWEEN 2020 AND 2021;")
 
 
 
 dbDisconnect(con)
-
-tmpcon = dbConnect(duckdb(), "cdpr_rawdata.duckdb")
-
-test = dbGetQuery(tmpcon, "SELECT * FROM udc18_01;")
-
-dbDisconnect(tmpcon)

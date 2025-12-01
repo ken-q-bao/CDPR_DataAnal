@@ -4,7 +4,7 @@
 #          Uses duckdb's read_csv_auto function for faster reading and writing to duckdb.
 #          skips files that are already in the duckdb database to avoid duplication.
 #          If initial run, total run time is about 3 hrs.
-#          Total file size of cdpr_rawdata.duckdb is about 5.66 GB.
+#          Total file size of cdpr_rawdata.duckdb is about 6.85 GB.
 library(duckdb)
 library(readr)
 
@@ -21,7 +21,8 @@ queries = lapply(files, function(f) {
                                                       header=TRUE, 
                                                       all_varchar=TRUE, 
                                                       strict_mode=FALSE,
-                                                      max_line_size = 8000000);", 
+                                                      max_line_size = 8000000,
+                                                      null_padding=TRUE);", 
                 table_name, f)
   return(qry)
 })

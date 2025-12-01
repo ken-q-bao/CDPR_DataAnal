@@ -26,7 +26,7 @@ pattern90 = "^udc[0-9]{2}_[0-9]{2}\\.txt$"
 
 ## keep only txt files that match desired patterns
 select_txtfiles = lapply(all_txtfiles, function(df) {
-  df$Name[str_detect(df$Name, pattern89) | str_detect(df$Name, pattern90)]
+  df$Name[str_detect(basename(df$Name), pattern89) | str_detect(basename(df$Name), pattern90)]
 })
 
 # keep files in select_txtfiles that are not in existing_files
@@ -40,10 +40,11 @@ pb = progress_bar$new(total = n)
 
 for(i in 1:length(zip_filenames)){
   if(length(files_to_extract[[i]]) > 0){
-    unzip(zipfile = paste0(dir, zip_filenames[i]),
+    unzip(zipfile = paste0("cdpr_data_zip/", zip_filenames[i]),
           files = files_to_extract[[i]],
-          exdir = dir)
+          exdir = dir,
+          junkpaths = TRUE)
   }
   pb$tick()
 }
-close(pb)
+

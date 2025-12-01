@@ -89,6 +89,12 @@ pb = progress_bar$new(
   clear = FALSE, width = 60
 )
 
+# con_raw = dbConnect(duckdb(), "cdpr_rawdata.duckdb")
+# cols_source = dbListFields(con_raw, "udc23_01")
+# dbDisconnect(con_raw)
+
+# cols2add= setdiff(cols_source, all_cols)
+
 for (t in tables_raw) {
   old_tables = dbGetQuery(con_combined, "SELECT tables FROM track_tables;")$tables
   
@@ -130,14 +136,32 @@ for (t in tables_raw) {
     message("skipped: ", t)
     
   } else {
-    # insert new table name into tracking table
-    dbExecute(con_combined, sprintf("INSERT INTO track_tables (tables) VALUES ('%s');", t))
-
+    # if cols have changed, need to handle that
     # get columns of source table
     cols_source <- dbGetQuery(con_combined, sprintf("PRAGMA table_info('raw.%s');", t))$name
 
+    # get columns of combined table
+    combcols = dbListFields(con_combined, "cdpr_combined")
+
+    # add any new columns to combined table
+    if(length(setdiff(cols_source, combcols)) != 0) {
+        cols2add = setdiff(cols_source, combcols)
+
+        # only one ALTER command per statement is supported
+        # so need to loop through each new column
+        for(k in cols2add) {
+            dbExecute(con_combined, sprintf("
+                ALTER TABLE cdpr_combined ADD COLUMN %s TEXT;
+            ", k))
+        }
+
+    }
+
+    # insert new table name into tracking table
+    dbExecute(con_combined, sprintf("INSERT INTO track_tables (tables) VALUES ('%s');", t))
+
     # build select statement with NULLs for missing columns
-    select_list <- sapply(all_cols, function(c) {
+    select_list <- sapply(combcols, function(c) {
       if (c %in% cols_source) {
         c
       } else {
@@ -152,7 +176,7 @@ for (t in tables_raw) {
     dbExecute(con_combined, sprintf("
       INSERT INTO cdpr_combined (%s)
       SELECT %s FROM raw.%s;
-    ", paste(all_cols, collapse = ", "), select_sql, t))
+    ", paste(combcols, collapse = ", "), select_sql, t))
         message("processed: ", t)
   }
   

@@ -1,5 +1,6 @@
 library(stringr)
 library(utils)
+library(progress)
 
 # specify directory to unzip files to
 dir = "cdpr_data_unzip/"
@@ -12,10 +13,10 @@ if(!dir.exists(dir)){
 existing_files = list.files(path = dir, pattern = ".txt")
 
 # get list of all zip folders in cdpr_data_zip
-zip_filenames = list.files(path = dir, pattern = ".zip")
+zip_filenames = list.files(path = "cdpr_data_zip/", pattern = ".zip")
 
 # create list of all files contained in each zip folder
-all_txtfiles = lapply(zip_filenames, function(x) unzip(paste0(dir, x), list = TRUE))
+all_txtfiles = lapply(zip_filenames, function(x) unzip(paste0("cdpr_data_zip/", x), list = TRUE))
 
 # find all filenames to be extracted for each zip folder
 ## pur1990 and after, data is saved as "udc"
@@ -35,7 +36,7 @@ files_to_extract = lapply(select_txtfiles, function(files) {
 
 # extract only files that are not already unzipped
 n = length(unlist(files_to_extract))
-pb = txtProgressBar(min = 0, max = n, style = 3)
+pb = progress_bar$new(total = n)
 
 for(i in 1:length(zip_filenames)){
   if(length(files_to_extract[[i]]) > 0){
@@ -43,6 +44,6 @@ for(i in 1:length(zip_filenames)){
           files = files_to_extract[[i]],
           exdir = dir)
   }
-  setTxtProgressBar(pb, i)
+  pb$tick()
 }
 close(pb)

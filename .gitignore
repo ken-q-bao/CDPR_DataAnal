@@ -6,4 +6,5 @@
 *.duckdb
 cdpr_data_zip
 cdpr_data_unzip
+gis_section
 *.wal

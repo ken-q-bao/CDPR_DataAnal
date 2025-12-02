@@ -12,14 +12,9 @@ trk_tbls = dbGetQuery(con, "SELECT tables FROM track_tables;")$tables
 # print all column names inside 'cdpr_combined' table
 colnames <- dbGetQuery(con, "PRAGMA table_info('cdpr_combined')")$name
 
-# example query: get all records from years 2018-2022
-comb_tbl = dbGetQuery(con, "SELECT * 
-                            FROM cdpr_combined
-                            WHERE CAST(\"year\" AS INTEGER) BETWEEN 2020 AND 2021;")
-
-# Now run your interpolated query
-chem_val  <- "1601"
-start_yr  <- 2019   # keep these as integers
+# example query: get all records for a specific chemical code between certain years
+chem_val  <- "1601" # paraquat dichloride
+start_yr  <- 1980   # keep these as integers
 end_yr    <- 2021
 
 sql <- sqlInterpolate(con, "
@@ -31,11 +26,7 @@ sql <- sqlInterpolate(con, "
 
 tbl <- dbGetQuery(con, sql)
 
-test_qry = "SELECT *
-            FROM cdpr_combined
-            WHERE CAST(\"year\" AS INTEGER) = 2021;"
-
-test = dbGetQuery(con, test_qry)
-
-test = dbGetQuery(con, "SELECT DISTINCT year FROM cdpr_combined;")
 dbDisconnect(con)
+
+times = dplyr::select(tbl, applic_time, year)
+hist(as.numeric(dplyr::filter(times, year == 2021)$applic_time))

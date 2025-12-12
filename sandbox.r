@@ -21,12 +21,18 @@ chem_val  <- c("1601","458") # paraquat dichloride
 start_yr  <- 1980   # keep these as integers
 end_yr    <- 2021
 
-sql <- sqlInterpolate(con, "
+# Quote each value safely, then coerce to character
+chem_list <- paste(
+  vapply(chem_val, function(x) as.character(DBI::dbQuoteLiteral(con, x)), ""),
+  collapse = ", "
+)
+
+sql <- sprintf("
   SELECT *
   FROM cdpr_combined
-  WHERE (chem_code IN ?chem_val OR chemical_code IN ?chem_val)
-    AND CAST(\"year\" AS INTEGER) BETWEEN ?start_yr AND ?end_yr;
-", chem_val = chem_val, start_yr = start_yr, end_yr = end_yr)
+  WHERE (chem_code IN (%s) OR chemical_code IN (%s))
+    AND CAST(year AS INTEGER) BETWEEN %d AND %d;
+", chem_list, chem_list, start_yr, end_yr)
 
 tbl <- dbGetQuery(con, sql)
 
@@ -97,15 +103,6 @@ section = st_read(dsn = "shapefiles/cdpr_plsnet.gdb") |>
     SECTION = as.integer(SECTION)
   )
 
-section = st_read("shapefiles/cdpr_plsnet.geojson") |>
-  st_make_valid() |>
-  mutate(area_m2 = as.numeric(st_area(geometry)))
-
-st_layers("shapefiles/cdpr_plsnet.gdb")
-
-ggplot() +
-  geom_sf(data = head(filter(section, area_m2<2.6e+6),10000), fill =NA,color="grey60", linewidth=.05, size = .01)
-
 # the plss key string is
 # <MERIDIAN>-<TOWNSHIP2><TSHIP_DIR>-<RANGE2><RANGE_DIR>-<SECTION2>-<COUNTY_CD>
 plss_df = section |>
@@ -127,16 +124,38 @@ joined_df = plss_df |>
   dplyr::left_join(para_df, by = "plss_key")
 
 pd = filter(joined_df, year == "2021")
+base = tigris::counties(state = "CA", year = 2023, cb = TRUE)
 
-ggplot() +
-  geom_sf(data = section, fill = "transparent", color = "grey", linewidth = .05) +
-  geom_sf(data = pd, aes(fill = as.numeric(acre_treated)), color = NA) +
+# Compute centroids of county polygons
+base_centroids <- st_centroid(base)
+
+# If multipolygons exist, st_centroid may place labels outside.
+# st_point_on_surface() ensures the point lies inside the polygon:
+base_centroids <- st_point_on_surface(base)
+
+plot = ggplot() +
+  geom_sf(data = base, fill = "transparent", color = "black", linewidth = .05) +
+  geom_sf(data = pd, aes(fill = as.numeric(applic_time)), color = NA) +
+  geom_sf_text(data = base_centroids, aes(label = NAME), size = 2, color = "black") +
   scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
   theme_minimal() +
   labs(
-    title = "Pesticide Application Times in California (2021)",
-    fill = "Application Time (minutes)"
+    title = "Paraquat Application Times in California (2021)",
+    fill = "Application Time (HH:MM)"
   )
 
-sort(unique(as.integer(section$SECTION)))
-sort(unique(as.integer(tbl$section)))
+ggsave("paraquat_apptiming_2021.jpg", plot, dpi = 1000)
+
+plot = ggplot() +
+  geom_sf(data = base, fill = "transparent", color = "black", linewidth = .05) +
+  geom_sf(data = pd, aes(fill = as.numeric(acre_treated)), color = NA) +
+  geom_sf_text(data = base_centroids, aes(label = NAME), size = 2, color = "black") +
+  scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
+  theme_minimal() +
+  labs(
+    title = "Paraquat Acres Ttreated in California (2021)",
+    fill = "Acres Treated"
+  )
+ggsave("parquat_acres_treated_2021.jpg", plot, dpi = 1000)
+
+

@@ -4,8 +4,10 @@ This repository contains data analysis and research for CDPR (California Departm
 
 ## Project Structure
 
-- `test/` - Virtual environment and test files
-- `test.r` - R test script
+- `webscrape.r` scrapes the CAL PUR data website to download each year's zip files
+- `unzip.r` unzips all of the folders obtained via `webscrape.r`.
+- `readinto_duckdb.r` adds all unzipped .txt data files into duckdb on an as-is basis.
+- `duckdb_tidying.r` tidy's up the data by combining everything into a single data frame into another duckdb.
 
 ## Getting Started
 For first time users:

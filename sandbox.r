@@ -3,6 +3,7 @@ library(dplyr)
 library(duckdb)
 library(ggplot2)
 library(sf)
+library(stars)
 library(stringr)
 
 con = dbConnect(duckdb(), "cdpr_combined.duckdb")
@@ -14,27 +15,27 @@ tables = dbListTables(con)
 trk_tbls = dbGetQuery(con, "SELECT tables FROM track_tables;")$tables
 
 # print all column names inside 'cdpr_combined' table
-colnames <- dbGetQuery(con, "PRAGMA table_info('cdpr_combined')")$name
+colnames = dbGetQuery(con, "PRAGMA table_info('cdpr_combined')")$name
 
 # example query: get all records for a specific chemical code between certain years
-chem_val  <- c("1601","458") # paraquat dichloride
-start_yr  <- 1980   # keep these as integers
-end_yr    <- 2021
+chem_val = c("1601","458") # paraquat dichloride
+start_yr = 2010   # keep these as integers
+end_yr   = 2021
 
 # Quote each value safely, then coerce to character
-chem_list <- paste(
+chem_list = paste(
   vapply(chem_val, function(x) as.character(DBI::dbQuoteLiteral(con, x)), ""),
   collapse = ", "
 )
 
-sql <- sprintf("
+sql = sprintf("
   SELECT *
   FROM cdpr_combined
   WHERE (chem_code IN (%s) OR chemical_code IN (%s))
     AND CAST(year AS INTEGER) BETWEEN %d AND %d;
 ", chem_list, chem_list, start_yr, end_yr)
 
-tbl <- dbGetQuery(con, sql)
+tbl = dbGetQuery(con, sql)
 
 dbDisconnect(con)
 
@@ -101,8 +102,10 @@ section = st_read(dsn = "shapefiles/cdpr_plsnet.gdb") |>
   st_make_valid() |>
   mutate(
     SECTION = as.integer(SECTION)
-  )
+  ) |>
+  st_transform(crs = 3310)  # CA Albers
 
+# prepare joining cdpr data to section data
 # the plss key string is
 # <MERIDIAN>-<TOWNSHIP2><TSHIP_DIR>-<RANGE2><RANGE_DIR>-<SECTION2>-<COUNTY_CD>
 plss_df = section |>
@@ -121,22 +124,30 @@ plss_df = section |>
 # join application data with section shapefile by section number
 
 joined_df = plss_df |>
-  dplyr::left_join(para_df, by = "plss_key")
+  dplyr::left_join(para_df, by = "plss_key")|>
+  mutate(
+    applic_month = as.numeric(str_sub(applic_dt, 1, 2)),
+    applic_year  = as.numeric(str_sub(applic_dt, 7, 10)),
+    acre_treated = as.numeric(acre_treated)
+  )
 
-pd = filter(joined_df, year == "2021")
-base = tigris::counties(state = "CA", year = 2023, cb = TRUE)
+############## base map of counties in CA for plotting ########################
+county = tigris::counties(state = "CA", year = 2023, cb = TRUE) |>
+  st_transform(crs = 3310)  # CA Albers
 
 # Compute centroids of county polygons
-base_centroids <- st_centroid(base)
+county_centroids = st_centroid(county)
 
 # If multipolygons exist, st_centroid may place labels outside.
 # st_point_on_surface() ensures the point lies inside the polygon:
-base_centroids <- st_point_on_surface(base)
+county_centroids = st_point_on_surface(county)
 
+######### explore application times in 2021 #################
+pd = filter(joined_df, year == "2021")
 plot = ggplot() +
-  geom_sf(data = base, fill = "transparent", color = "black", linewidth = .05) +
+  geom_sf(data = county, fill = "transparent", color = "black", linewidth = .05) +
   geom_sf(data = pd, aes(fill = as.numeric(applic_time)), color = NA) +
-  geom_sf_text(data = base_centroids, aes(label = NAME), size = 2, color = "black") +
+  geom_sf_text(data = county_centroids, aes(label = NAME), size = 2, color = "black") +
   scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
   theme_minimal() +
   labs(
@@ -146,16 +157,41 @@ plot = ggplot() +
 
 ggsave("paraquat_apptiming_2021.jpg", plot, dpi = 1000)
 
+########## EXPLORE TAT ##############################
+# stars (raster) approach vs sf approach
+tmp = joined_df |> 
+    filter(applic_year == 2021) |>
+    group_by(plss_key) |>
+    summarise(acre_treated = sum(acre_treated, na.rm = TRUE), .groups = "drop") |>
+    select(acre_treated)
+
+# 1 mile resolution
+template = st_as_stars(st_bbox(section), dx = 1609.34, dy = 1609.34, values = NA) 
+test = st_rasterize(tmp, template = template)
+
+# plotting sf obj
 plot = ggplot() +
-  geom_sf(data = base, fill = "transparent", color = "black", linewidth = .05) +
-  geom_sf(data = pd, aes(fill = as.numeric(acre_treated)), color = NA) +
-  geom_sf_text(data = base_centroids, aes(label = NAME), size = 2, color = "black") +
-  scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
+  geom_sf(data = county, fill = "transparent", color = "black", linewidth = .05) +
+  geom_sf(data = tmp, aes(fill = acre_treated), color = NA) +
+  geom_sf_text(data = county_centroids, aes(label = NAME), size = 2, color = "black") +
+  scale_fill_gradient(low = "blue", high = "red",na.value = "transparent") +
   theme_minimal() +
   labs(
-    title = "Paraquat Acres Ttreated in California (2021)",
+    title = "Paraquat TAT in California (2021) - SF Object",
     fill = "Acres Treated"
   )
-ggsave("parquat_acres_treated_2021.jpg", plot, dpi = 1000)
+ggsave("parquat_tat_2021_sf.jpg", plot, dpi = 1000)
 
+# plotting stars obj
+p = ggplot() +
+  geom_sf(data = county, fill = "transparent", color = "black", linewidth = .05) +
+  geom_stars(data = test) +
+  geom_sf_text(data = county_centroids, aes(label = NAME), size = 2, color = "black") +
+  scale_fill_gradient(low = "blue", high = "red",na.value = "transparent") +
+  theme_minimal() +
+  labs(
+    title = "Paraquat TAT in California (2021) - Rasterized"
+  )
+ggsave("parquat_tat_2021_raster.jpg", p, dpi = 1000)
 
+# WHY ARE THE BODIES OF WATER CODED WITH SUCH HIGH TATs?!?!

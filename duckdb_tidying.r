@@ -69,18 +69,18 @@ if (length(tables_com) == 0) {
 dbExecute(con_combined, "ATTACH 'cdpr_rawdata.duckdb' AS raw;")
 
 # get all unique column names across all raw tables
-all_cols <- character()
+all_cols = character()
 
 for (t in tables_raw) {
-  cols <- dbGetQuery(con_combined, sprintf("
+  cols = dbGetQuery(con_combined, sprintf("
     PRAGMA table_info('raw.%s');
   ", t))$name
   
-  all_cols <- union(all_cols, cols)
+  all_cols = union(all_cols, cols)
 }
 
 # keep a stable order
-all_cols <- sort(all_cols)
+all_cols = sort(all_cols)
 
 # initialize progress bar
 pb = progress_bar$new(
@@ -101,7 +101,7 @@ for (t in tables_raw) {
   if (length(old_tables) == 0) {
 
     # first time setup: create combined table with all columns
-    cols_def <- paste(sprintf("%s TEXT", all_cols), collapse = ", ")
+    cols_def = paste(sprintf("%s TEXT", all_cols), collapse = ", ")
 
     dbExecute(con_combined, sprintf("
       CREATE TABLE cdpr_combined (%s);
@@ -109,10 +109,10 @@ for (t in tables_raw) {
     
     ####### data insertion
     # get columns of source table
-    cols_source <- dbGetQuery(con_combined, sprintf("PRAGMA table_info('raw.%s');", t))$name
+    cols_source = dbGetQuery(con_combined, sprintf("PRAGMA table_info('raw.%s');", t))$name
 
     # build select statement with NULLs for missing columns
-    select_list <- sapply(all_cols, function(c) {
+    select_list = sapply(all_cols, function(c) {
       if (c %in% cols_source) {
         c
       } else {
@@ -121,7 +121,7 @@ for (t in tables_raw) {
     })
 
     # build final select SQL
-    select_sql <- paste(select_list, collapse = ", ")
+    select_sql = paste(select_list, collapse = ", ")
 
     # insert data into combined table
     dbExecute(con_combined, sprintf("
@@ -138,7 +138,7 @@ for (t in tables_raw) {
   } else {
     # if cols have changed, need to handle that
     # get columns of source table
-    cols_source <- dbGetQuery(con_combined, sprintf("PRAGMA table_info('raw.%s');", t))$name
+    cols_source = dbGetQuery(con_combined, sprintf("PRAGMA table_info('raw.%s');", t))$name
 
     # get columns of combined table
     combcols = dbListFields(con_combined, "cdpr_combined")
@@ -161,7 +161,7 @@ for (t in tables_raw) {
     dbExecute(con_combined, sprintf("INSERT INTO track_tables (tables) VALUES ('%s');", t))
 
     # build select statement with NULLs for missing columns
-    select_list <- sapply(combcols, function(c) {
+    select_list = sapply(combcols, function(c) {
       if (c %in% cols_source) {
         c
       } else {
@@ -170,7 +170,7 @@ for (t in tables_raw) {
     })
     
     # build final select SQL
-    select_sql <- paste(select_list, collapse = ", ")
+    select_sql = paste(select_list, collapse = ", ")
 
     # insert data into combined table
     dbExecute(con_combined, sprintf("

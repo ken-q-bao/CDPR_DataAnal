@@ -94,7 +94,6 @@ para_df = select(
     )
   )
 
-
 ################## download spatial data ########################################
 
 # spatial data downloaded from https://gis.data.ca.gov/maps/2230fc8527f5440e8221d69080d1d687/about

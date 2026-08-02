@@ -6,5 +6,7 @@
 *.duckdb
 cdpr_data_zip
 cdpr_data_unzip
+cdpr_parquet_export
+duckdb_temp
 shapefiles
 *.wal

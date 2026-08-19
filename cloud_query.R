@@ -2,6 +2,7 @@ library(arrow)
 library(dplyr)
 library(keyring)
 
+# 0. Securely Setup Credentials - Uncomment and run ONCE then re-comment out
 # key_set(service = "backblaze", username = "key_id")
 # key_set(service = "backblaze", username = "app_key")
 

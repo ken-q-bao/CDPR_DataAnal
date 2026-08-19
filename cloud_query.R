@@ -23,6 +23,18 @@ b2_fs = S3FileSystem$create(
 dataset_uri = paste0(bucket_name, "/", data_path)
 ds = open_dataset(b2_fs$path(dataset_uri), format = "parquet")
 
+# 4. Explore data
+# 4.1 Print column names and data types
+print(ds$schema)
+
+# 4.2 How man rows are there in the database?
+# 132 million rows, nrow() will run slowly
+# nrow(ds)
+
+# 4.3 Explore column values - chem_code in this case
+ds |> select(chem_code) |> distinct() |> collect()
+
+# 5. Execute the query
 query_result = ds %>%
   filter(year == 2020 & chem_code %in% c("1601","458")) %>%
   collect()  # Pulls ONLY the filtered data down into your R data.frame memory
